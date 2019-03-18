@@ -1,0 +1,3 @@
+[submodule "BLE"]
+	path = BLE
+	url = https://haoyuant@bitbucket.org/tektindustries/mobile_ble_wifi_tool.git

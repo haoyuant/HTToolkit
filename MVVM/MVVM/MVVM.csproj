@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>HTToolkit.MVVM</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Xamarin.Forms" Version="3.6.0.220655" />
+    <PackageReference Include="Autofac" Version="4.9.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Remove="CustomNavigationView.xaml" />
+  </ItemGroup>
+</Project>
