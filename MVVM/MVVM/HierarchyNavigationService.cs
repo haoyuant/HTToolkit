@@ -8,54 +8,89 @@ namespace HTToolkit.MVVM
 {
     public class HierarchyNavigationService : INavigationService
     {
-        public Task NavigateToAsync<TViewModel>(object parameter = null)
+        public Task NavigateToAsync<TViewModel>(object parameter = null) where TViewModel : ViewModelBase
         {
             return InternalNavigateToAsync(typeof(TViewModel), parameter);
         }
 
         public async Task NavigateBackAsync(object parameter = null)
         {
-            if (Application.Current.MainPage is NavigationPage mainPage)
+            if (Application.Current.MainPage is NavigationPage navPage)
             {
-                var stack = mainPage.Navigation.NavigationStack;
-                if (stack.Count >= 2)
+                await InternalNavigateBack(parameter, navPage);
+            }
+            else if (Application.Current.MainPage is MasterDetailPage masterDetailPage)
+            {
+                if (masterDetailPage.Detail is NavigationPage detailNavPage)
                 {
-                    await mainPage.PopAsync();
-                    var currentPage = stack[stack.Count - 1];
-                    await (currentPage.BindingContext as ViewModelBase).OnActivated(parameter);
+                    await InternalNavigateBack(parameter, detailNavPage);
                 }
+            }
+        }
+
+        static async Task InternalNavigateBack(object parameter, NavigationPage navPage)
+        {
+            var stack = navPage.Navigation.NavigationStack;
+            if (stack.Count >= 2)
+            {
+                await navPage.PopAsync();
+                var currentPage = stack[stack.Count - 1];
+                await (currentPage.BindingContext as ViewModelBase).OnActivated(parameter);
             }
         }
 
         public Task RemoveLastFromBackStackAsync()
         {
-            if (Application.Current.MainPage is NavigationPage mainPage)
+            if (Application.Current.MainPage is NavigationPage navPage)
             {
-                if (mainPage.Navigation.NavigationStack.Count >= 2)
+                InternalRemoveLastFromBackStack(navPage);
+            }
+            else if (Application.Current.MainPage is MasterDetailPage masterDetailPage)
+            {
+                if (masterDetailPage.Detail is NavigationPage detailNavPage)
                 {
-                    mainPage.Navigation.RemovePage(
-                        mainPage.Navigation.NavigationStack[mainPage.Navigation.NavigationStack.Count - 2]);
+                    InternalRemoveLastFromBackStack(detailNavPage);
                 }
             }
-
             return Task.FromResult(true);
+        }
+
+        static void InternalRemoveLastFromBackStack(NavigationPage navPage)
+        {
+            if (navPage.Navigation.NavigationStack.Count >= 2)
+            {
+                navPage.Navigation.RemovePage(
+                    navPage.Navigation.NavigationStack[navPage.Navigation.NavigationStack.Count - 2]);
+            }
         }
 
         public Task ClearBackStackAsync()
         {
-            if (Application.Current.MainPage is NavigationPage mainPage)
+            if (Application.Current.MainPage is NavigationPage navPage)
             {
-                for (int i = 0; i < mainPage.Navigation.NavigationStack.Count - 1; i++)
+                InternalClearBackStack(navPage);
+            }
+            else if (Application.Current.MainPage is MasterDetailPage masterDetailPage)
+            {
+                if (masterDetailPage.Detail is NavigationPage detailNavPage)
                 {
-                    var page = mainPage.Navigation.NavigationStack[i];
-                    mainPage.Navigation.RemovePage(page);
+                    InternalClearBackStack(detailNavPage);
                 }
             }
 
             return Task.FromResult(true);
         }
 
-        private async Task InternalNavigateToAsync(Type viewModelType, object parameter)
+        static void InternalClearBackStack(NavigationPage navPage)
+        {
+            for (int i = 0; i < navPage.Navigation.NavigationStack.Count - 1; i++)
+            {
+                var page = navPage.Navigation.NavigationStack[i];
+                navPage.Navigation.RemovePage(page);
+            }
+        }
+
+        async Task InternalNavigateToAsync(Type viewModelType, object parameter)
         {
             Page page = CreatePage(viewModelType);
 
@@ -63,9 +98,16 @@ namespace HTToolkit.MVVM
             {
                 await navigationPage.PushAsync(page);
             }
-            else
+            else if (Application.Current.MainPage is MasterDetailPage masterDetailPage)
             {
-                Application.Current.MainPage = new NavigationPage(page);
+                if (masterDetailPage.Detail is NavigationPage navPage)
+                {
+                    await navPage.PushAsync(page);
+                }
+                else
+                {
+                    Application.Current.MainPage = new NavigationPage(page);
+                }
             }
             await (page.BindingContext as ViewModelBase).OnActivated(parameter);
         }
@@ -90,6 +132,15 @@ namespace HTToolkit.MVVM
 
             Page page = Activator.CreateInstance(pageType) as Page;
             return page;
+        }
+
+        public Task RedirectTo<TViewModel>(object parameter = null) where TViewModel : ViewModelBase
+        {
+            Page page = CreatePage(typeof(TViewModel));
+            Application.Current.MainPage = page;
+            ((ViewModelBase)page.BindingContext)?.OnActivated(parameter);
+
+            return Task.CompletedTask;
         }
     }
 }
